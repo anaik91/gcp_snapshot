@@ -32,8 +32,11 @@ SnapshotFrequencyInHours = 2
 Before you can run the Automation . Kindly export the below environment variable to point to GCP IAM Service Account JSON File .
 
 ON Linux/Mac
+
 `export GOOGLE_APPLICATION_CREDENTIALS="/tmp/sap-abs-dev.json"`
+
 ON Windows
+
 `export GOOGLE_APPLICATION_CREDENTIALS=C:\tmp\sap-abs-dev.json"`
 
 TO run the Automation
