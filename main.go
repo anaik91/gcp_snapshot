@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"io/ioutil"
 	"log"
 	"os"
@@ -10,9 +11,10 @@ import (
 )
 
 func main() {
-	project := "sap-abs-dev"
+	project:= "i501950"
+	gcp_project := "sap-abs-dev"
 	region := "us-central1"
-	//zone := "us-central1-a"
+	zone := "us-central1-a"
 	var SnapshotRetentionDays int64 = 7
 	var SnapshotFrequencyInHours int64 = 2
 	SnapshotScheduleName := project + "-" + region + "-snapshot-schedule"
@@ -30,10 +32,10 @@ func main() {
 		log.Fatal(err)
 	}
 	clientOptions := option.WithCredentialsJSON(data)
-	computeClient := getComputeClient(ctx, clientOptions)
-	status:=CreateSnapShotSchedule(
+	computeClient := GetComputeClient(ctx, clientOptions)
+	SnapShotScheduleSelf,status:=CreateSnapShotSchedule(
 		computeClient,
-		project,
+		gcp_project,
 		region,
 		SnapshotScheduleName,
 		SnapshotRetentionDays,
@@ -43,5 +45,25 @@ func main() {
 		log.Fatal("Error Creating the Snapshot :" ,SnapshotScheduleName)
 		os.Exit(1)
 	}
-
+	instanceFilter:= map[string]string{"project":project,"backup":"backup"}
+	instanceList:=ListComputeByLabel(computeClient,gcp_project,zone,instanceFilter)
+	log.Println(instanceList)
+	for _,v:= range instanceList {
+		log.Println("Associating Snapshot Schedule : ", SnapShotScheduleSelf , "to Instance ",v)
+		disks:=GetComputeDisks(computeClient,gcp_project,zone,v)
+		log.Printf("Disks attached to %v are %v\n",v,strings.Join(disks,","))
+		for _,d := range disks {
+			log.Println("Setting Snapshot Schedule : ", SnapshotScheduleName , " to disk :" ,d)
+			if ok:=AttachSnapshotSchedule(
+				computeClient,
+				gcp_project,
+				zone,
+				d,
+				SnapShotScheduleSelf,
+			); ok {
+				log.Println("Snapshot Schedule : ", SnapshotScheduleName , " has been associated to disk :" ,d)
+			}
+		}
+	}
+	log.Println("Done")
 }

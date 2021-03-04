@@ -1,18 +1,26 @@
 package main
 
 import (
-	"os"
 	"log"
 	"google.golang.org/api/compute/v1"
 )
 
-func CreateSnapShotSchedule(computeClient *compute.Service,project,region,SnapshotScheduleName string, SnapshotRetentionDays,SnapshotFrequencyInHours int64) bool {
+func GetSnapShotSchedule(computeClient *compute.Service,project,region,SnapshotScheduleName string) (string,bool){
 	resourcePoliciesService := compute.NewResourcePoliciesService(computeClient)
 	resourcePolicyGet := resourcePoliciesService.Get(project, region, SnapshotScheduleName)
-	_, err := resourcePolicyGet.Do()
+	resourcePolicyData, err := resourcePolicyGet.Do()
 	if err == nil {
+		return resourcePolicyData.SelfLink,true
+	} else {
+		return "",false
+	}
+}
+
+func CreateSnapShotSchedule(computeClient *compute.Service,project,region,SnapshotScheduleName string, SnapshotRetentionDays,SnapshotFrequencyInHours int64) (string,bool){
+	resourcePoliciesService := compute.NewResourcePoliciesService(computeClient)
+	if selfLink,ok:=GetSnapShotSchedule(computeClient,project, region, SnapshotScheduleName); ok {
 		log.Printf("SnapshotScheduleName: %v Already Exists", SnapshotScheduleName)
-		os.Exit(0)
+		return selfLink,ok
 	}
 	log.Println("Snapshot Schedule Doesnt Exist.Proceeding with Creation ..")
 	SnapshotSchedulePolicy := &compute.ResourcePolicySnapshotSchedulePolicy{
@@ -45,8 +53,12 @@ func CreateSnapShotSchedule(computeClient *compute.Service,project,region,Snapsh
 	op, err := ResourcePoliciesInsert.Do()
 	if err != nil {
 		log.Println(op.StatusMessage)
-		return false
+		return "",false
 	}
 	log.Println("SnapShot Schedule has been created")
-	return true
+	if selfLink,ok:=GetSnapShotSchedule(computeClient,project, region, SnapshotScheduleName); ok {
+		return selfLink,ok
+	} else {
+		return "",false
+	}
 }
