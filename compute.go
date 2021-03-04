@@ -16,6 +16,22 @@ func GetComputeClient(ctx context.Context,options option.ClientOption) *compute.
 	return computeService
 }
 
+func FetchComputeZones(computeClient *compute.Service, project,region string) ([]string,bool) {
+	zones:= []string{}
+	ZonesService:=compute.NewZonesService(computeClient)
+	ZonesListCall:=ZonesService.List(project)
+	zonesInfo,err:=ZonesListCall.Do()
+	if err != nil {
+		log.Println(err)
+		return []string{},false
+	}
+	for _,v:=range zonesInfo.Items {
+		if strings.Contains(v.Region,region) {
+			zones = append(zones,v.Name)
+		}
+	}
+	return zones,true
+}
 
 func AttachSnapshotSchedule(computeClient *compute.Service, project,zone ,disk,scheduleName string) bool {
 	DisksService:=compute.NewDisksService(computeClient)
