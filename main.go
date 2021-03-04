@@ -42,7 +42,19 @@ func main() {
 	clientOptions := option.WithCredentialsJSON(data)
 	computeClient := GetComputeClient(ctx, clientOptions)
 	all_zones,_:= FetchComputeZones(computeClient,gcp_project,region)
-	log.Println(all_zones)
+	for _,v := range zones {
+		flag:=false
+		for _,z:= range all_zones {
+			if z == region + "-" + v {
+				flag=true
+			}
+		}
+		if ! flag {
+			log.Println("Invalid Input provided for zones List :" , zones,"Kindly recitfy.")
+			os.Exit(1)
+		}
+	}
+	log.Println("Zones Provided are valid.")
 	SnapShotScheduleSelf,status:=CreateSnapShotSchedule(
 		computeClient,
 		gcp_project,
