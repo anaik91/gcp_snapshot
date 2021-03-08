@@ -87,7 +87,7 @@ func GetComputeDisks(computeClient *compute.Service, project,zone,vmName string 
 		return instanceDisks
 	}
 	for _,v := range instanceData.Disks {
-		instanceDisks=append(instanceDisks,v.DeviceName)
+		instanceDisks=append(instanceDisks,v.Source)
 	}
 	return instanceDisks
 }

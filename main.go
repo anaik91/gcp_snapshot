@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 	"strconv"
-
-	//"path/filepath"
+	"path"
+	"net/url"
 	"gopkg.in/ini.v1"
 	"context"
 	"google.golang.org/api/option"
@@ -76,17 +76,22 @@ func main() {
 		for _,v:= range instanceList {
 			log.Println("Associating Snapshot Schedule : ", SnapshotScheduleName , "to Instance ",v)
 			disks:=GetComputeDisks(computeClient,gcp_project,zone,v)
-			log.Printf("Disks attached to %v are %v\n",v,strings.Join(disks,","))
+			//log.Printf("Disks attached to %v are %v\n",v,strings.Join(disks,","))
 			for _,d := range disks {
-				log.Println("Setting Snapshot Schedule : ", SnapshotScheduleName , " to disk :" ,d)
+				url, err := url.Parse(d)
+				if err != nil {
+					panic(err)
+				}
+				eachDisk:=path.Base(url.Path)
+				log.Println("Setting Snapshot Schedule : ", SnapshotScheduleName , " to disk :" ,eachDisk)
 				if ok:=AttachSnapshotSchedule(
 					computeClient,
 					gcp_project,
 					zone,
-					d,
+					eachDisk,
 					SnapShotScheduleSelf,
 				); ok {
-					log.Println("Snapshot Schedule : ", SnapshotScheduleName , " has been associated to disk :" ,d)
+					log.Println("Snapshot Schedule : ", SnapshotScheduleName , " has been associated to disk :" ,eachDisk)
 				}
 			}
 		}
