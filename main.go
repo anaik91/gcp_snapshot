@@ -1,30 +1,31 @@
 package main
 
 import (
-	"strings"
+	"context"
 	"io/ioutil"
 	"log"
-	"os"
-	"strconv"
-	"path"
 	"net/url"
-	"gopkg.in/ini.v1"
-	"context"
+	"os"
+	"path"
+	"strconv"
+	"strings"
+
 	"google.golang.org/api/option"
+	"gopkg.in/ini.v1"
 )
 
 func main() {
 	cfg, err := ini.Load("input.properties")
-    if err != nil {
-        log.Printf("Fail to read file: %v", err)
-        os.Exit(1)
-    }
-	project:= cfg.Section("inputs").Key("project").String()
+	if err != nil {
+		log.Printf("Fail to read file: %v", err)
+		os.Exit(1)
+	}
+	project := cfg.Section("inputs").Key("project").String()
 	gcp_project := cfg.Section("inputs").Key("gcp_project").String()
 	region := cfg.Section("inputs").Key("region").String()
-	zones := strings.Split(cfg.Section("inputs").Key("zones").String(),",")
-	SnapshotRetentionDays,_ := strconv.ParseInt(cfg.Section("inputs").Key("SnapshotRetentionDays").String(), 10, 64)
-	SnapshotFrequencyInHours,_ := strconv.ParseInt(cfg.Section("inputs").Key("SnapshotFrequencyInHours").String(), 10, 64)
+	zones := strings.Split(cfg.Section("inputs").Key("zones").String(), ",")
+	SnapshotRetentionDays, _ := strconv.ParseInt(cfg.Section("inputs").Key("SnapshotRetentionDays").String(), 10, 64)
+	SnapshotFrequencyInHours, _ := strconv.ParseInt(cfg.Section("inputs").Key("SnapshotFrequencyInHours").String(), 10, 64)
 	SnapshotScheduleName := project + "-" + region + "-snapshot-schedule"
 
 	serviceAccountJson := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
@@ -41,21 +42,21 @@ func main() {
 	}
 	clientOptions := option.WithCredentialsJSON(data)
 	computeClient := GetComputeClient(ctx, clientOptions)
-	all_zones,_:= FetchComputeZones(computeClient,gcp_project,region)
-	for _,v := range zones {
-		flag:=false
-		for _,z:= range all_zones {
-			if z == region + "-" + v {
-				flag=true
+	all_zones, _ := FetchComputeZones(computeClient, gcp_project, region)
+	for _, v := range zones {
+		flag := false
+		for _, z := range all_zones {
+			if z == region+"-"+v {
+				flag = true
 			}
 		}
-		if ! flag {
-			log.Println("Invalid Input provided for zones List :" , zones,"Kindly recitfy.")
+		if !flag {
+			log.Println("Invalid Input provided for Region : ", region, "OR zones List :", zones, "Kindly recitfy.")
 			os.Exit(1)
 		}
 	}
 	log.Println("Zones Provided are valid.")
-	SnapShotScheduleSelf,status:=CreateSnapShotSchedule(
+	SnapShotScheduleSelf, status := CreateSnapShotSchedule(
 		computeClient,
 		gcp_project,
 		region,
@@ -63,35 +64,35 @@ func main() {
 		SnapshotRetentionDays,
 		SnapshotFrequencyInHours,
 	)
-	if ! status {
-		log.Fatal("Error Creating the Snapshot :" ,SnapshotScheduleName)
+	if !status {
+		log.Fatal("Error Creating the Snapshot :", SnapshotScheduleName)
 		os.Exit(1)
 	}
-	for _,eachzone := range  zones {
-		zone:=region+"-"+ eachzone
-		instanceFilter:= map[string]string{"project":project,"backup":"backup"}
-		log.Println("Listing VMs in Zone :", zone , "with filter  :",instanceFilter)
-		instanceList:=ListComputeByLabel(computeClient,gcp_project,zone,instanceFilter)
+	for _, eachzone := range zones {
+		zone := region + "-" + eachzone
+		instanceFilter := map[string]string{"project": project, "backup": "backup"}
+		log.Println("Listing VMs in Zone :", zone, "with filter  :", instanceFilter)
+		instanceList := ListComputeByLabel(computeClient, gcp_project, zone, instanceFilter)
 		log.Println(instanceList)
-		for _,v:= range instanceList {
-			log.Println("Associating Snapshot Schedule : ", SnapshotScheduleName , "to Instance ",v)
-			disks:=GetComputeDisks(computeClient,gcp_project,zone,v)
+		for _, v := range instanceList {
+			log.Println("Associating Snapshot Schedule : ", SnapshotScheduleName, "to Instance ", v)
+			disks := GetComputeDisks(computeClient, gcp_project, zone, v)
 			//log.Printf("Disks attached to %v are %v\n",v,strings.Join(disks,","))
-			for _,d := range disks {
+			for _, d := range disks {
 				url, err := url.Parse(d)
 				if err != nil {
 					panic(err)
 				}
-				eachDisk:=path.Base(url.Path)
-				log.Println("Setting Snapshot Schedule : ", SnapshotScheduleName , " to disk :" ,eachDisk)
-				if ok:=AttachSnapshotSchedule(
+				eachDisk := path.Base(url.Path)
+				log.Println("Setting Snapshot Schedule : ", SnapshotScheduleName, " to disk :", eachDisk)
+				if ok := AttachSnapshotSchedule(
 					computeClient,
 					gcp_project,
 					zone,
 					eachDisk,
 					SnapShotScheduleSelf,
 				); ok {
-					log.Println("Snapshot Schedule : ", SnapshotScheduleName , " has been associated to disk :" ,eachDisk)
+					log.Println("Snapshot Schedule : ", SnapshotScheduleName, " has been associated to disk :", eachDisk)
 				}
 			}
 		}
